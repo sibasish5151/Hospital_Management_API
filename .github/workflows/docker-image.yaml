@@ -91,9 +91,9 @@ jobs:
       - name: Deploy MongoDB
         shell: cmd
         run: |
-          kubectl apply -f k8s/mongodb/pvc.yaml
-          kubectl apply -f k8s/mongodb/deployment.yaml
-          kubectl apply -f k8s/mongodb/service.yaml
+          kubectl apply -f hospital-k8s/mongodb/pvc.yaml
+          kubectl apply -f hospital-k8s/mongodb/deployment.yaml
+          kubectl apply -f hospital-k8s/mongodb/service.yaml
 
 
       # --------------------------------------------------------
@@ -102,9 +102,9 @@ jobs:
       - name: Deploy Hospital API
         shell: cmd
         run: |
-          kubectl apply -f k8s/hospital-api/configmap.yaml
-          kubectl apply -f k8s/hospital-api/deployment.yaml
-          kubectl apply -f k8s/hospital-api/service.yaml
+          kubectl apply -f hospital-k8s/hospital-api/configmap.yaml
+          kubectl apply -f hospital-k8s/hospital-api/deployment.yaml
+          kubectl apply -f hospital-k8s/hospital-api/service.yaml
 
 
       # --------------------------------------------------------

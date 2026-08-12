@@ -14,7 +14,6 @@ jobs:
   # CI - BUILD AND PUSH DOCKER IMAGE
   # ============================================================
   build-and-push:
-
     runs-on: ubuntu-latest
 
     outputs:
@@ -27,6 +26,7 @@ jobs:
 
       - name: Generate image tag
         id: image
+        shell: bash
         run: |
           IMAGE_TAG="${GITHUB_SHA}"
           echo "tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
@@ -39,19 +39,20 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build Docker image
+        shell: bash
         run: |
-          docker build -t $IMAGE_NAME:${{ steps.image.outputs.tag }} .
+          docker build -t "$IMAGE_NAME:${{ steps.image.outputs.tag }}" .
 
       - name: Push Docker image
+        shell: bash
         run: |
-          docker push $IMAGE_NAME:${{ steps.image.outputs.tag }}
+          docker push "$IMAGE_NAME:${{ steps.image.outputs.tag }}"
 
 
   # ============================================================
   # CD - DEPLOY TO LOCAL MINIKUBE
   # ============================================================
   deploy:
-
     needs: build-and-push
 
     runs-on: [self-hosted, minikube]
@@ -61,114 +62,108 @@ jobs:
 
     steps:
 
-      # ----------------------------------------------------------
-      # CHECKOUT
-      # ----------------------------------------------------------
+      # --------------------------------------------------------
+      # CHECKOUT REPOSITORY
+      # --------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
 
-      # ----------------------------------------------------------
+      # --------------------------------------------------------
       # VERIFY MINIKUBE
-      # ----------------------------------------------------------
+      # --------------------------------------------------------
       - name: Verify Minikube
-        shell: 'C:\Program Files\Git\bin\bash.exe' {0}
+        shell: cmd
         run: |
           minikube status
 
 
-      # ----------------------------------------------------------
+      # --------------------------------------------------------
       # VERIFY KUBERNETES
-      # ----------------------------------------------------------
+      # --------------------------------------------------------
       - name: Verify Kubernetes
-        shell: 'C:\Program Files\Git\bin\bash.exe' {0}
+        shell: cmd
         run: |
           kubectl config use-context minikube
           kubectl get nodes
 
 
-      # ----------------------------------------------------------
+      # --------------------------------------------------------
       # DEPLOY MONGODB
-      # ----------------------------------------------------------
+      # --------------------------------------------------------
       - name: Deploy MongoDB
-        shell: 'C:\Program Files\Git\bin\bash.exe' {0}
+        shell: cmd
         run: |
           kubectl apply -f k8s/mongodb/pvc.yaml
           kubectl apply -f k8s/mongodb/deployment.yaml
           kubectl apply -f k8s/mongodb/service.yaml
 
 
-      # ----------------------------------------------------------
+      # --------------------------------------------------------
       # DEPLOY HOSPITAL API
-      # ----------------------------------------------------------
+      # --------------------------------------------------------
       - name: Deploy Hospital API
-        shell: 'C:\Program Files\Git\bin\bash.exe' {0}
+        shell: cmd
         run: |
           kubectl apply -f k8s/hospital-api/configmap.yaml
           kubectl apply -f k8s/hospital-api/deployment.yaml
           kubectl apply -f k8s/hospital-api/service.yaml
 
 
-      # ----------------------------------------------------------
-      # UPDATE API IMAGE
-      # ----------------------------------------------------------
+      # --------------------------------------------------------
+      # UPDATE HOSPITAL API IMAGE
+      # --------------------------------------------------------
       - name: Update Hospital API image
-        shell: 'C:\Program Files\Git\bin\bash.exe' {0}
+        shell: cmd
         run: |
-          kubectl set image deployment/hospital-api \
-            hospital-api=${IMAGE_NAME}:${IMAGE_TAG} \
-            -n hospital
+          kubectl set image deployment/hospital-api hospital-api=%IMAGE_NAME%:%IMAGE_TAG% -n hospital
 
 
-      # ----------------------------------------------------------
+      # --------------------------------------------------------
       # WAIT FOR ROLLOUT
-      # ----------------------------------------------------------
+      # --------------------------------------------------------
       - name: Wait for deployment rollout
-        shell: 'C:\Program Files\Git\bin\bash.exe' {0}
+        shell: cmd
         run: |
-          kubectl rollout status deployment/hospital-api \
-            -n hospital \
-            --timeout=180s
+          kubectl rollout status deployment/hospital-api -n hospital --timeout=180s
 
 
-      # ----------------------------------------------------------
-      # VERIFY FINAL DEPLOYMENT
-      # ----------------------------------------------------------
+      # --------------------------------------------------------
+      # VERIFY DEPLOYMENT
+      # --------------------------------------------------------
       - name: Verify deployment
-        shell: 'C:\Program Files\Git\bin\bash.exe' {0}
+        shell: cmd
         run: |
-          echo "=========================================="
-          echo " KUBERNETES DEPLOYMENT SUCCESSFUL"
-          echo "=========================================="
+          echo ==========================================
+          echo KUBERNETES DEPLOYMENT SUCCESSFUL
+          echo ==========================================
 
-          echo ""
-          echo "Minikube:"
+          echo.
+          echo Minikube:
           minikube status
 
-          echo ""
-          echo "Nodes:"
+          echo.
+          echo Kubernetes Nodes:
           kubectl get nodes
 
-          echo ""
-          echo "Pods:"
+          echo.
+          echo Hospital Namespace Pods:
           kubectl get pods -n hospital
 
-          echo ""
-          echo "Deployments:"
+          echo.
+          echo Deployments:
           kubectl get deployments -n hospital
 
-          echo ""
-          echo "Services:"
+          echo.
+          echo Services:
           kubectl get svc -n hospital
 
-          echo ""
-          echo "Running Hospital API image:"
-          kubectl get deployment hospital-api \
-            -n hospital \
-            -o jsonpath="{.spec.template.spec.containers[0].image}"
+          echo.
+          echo Running Hospital API Image:
+          kubectl get deployment hospital-api -n hospital -o jsonpath="{.spec.template.spec.containers[0].image}"
 
-          echo ""
-          echo ""
-          echo "=========================================="
-          echo " DEPLOYMENT VERIFICATION COMPLETE"
-          echo "=========================================="
+          echo.
+          echo.
+          echo ==========================================
+          echo DEPLOYMENT VERIFICATION COMPLETE
+          echo ==========================================

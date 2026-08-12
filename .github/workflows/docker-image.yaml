@@ -70,7 +70,7 @@ jobs:
       # VERIFY MINIKUBE
       # --------------------------------------------------------
       - name: Verify Minikube
-        shell: cmd
+        shell: bash
         run: |
           minikube status
 
@@ -79,7 +79,7 @@ jobs:
       # VERIFY KUBERNETES
       # --------------------------------------------------------
       - name: Verify Kubernetes
-        shell: cmd
+        shell: bash
         run: |
           kubectl config use-context minikube
           kubectl get nodes
@@ -89,8 +89,10 @@ jobs:
       # DEPLOY MONGODB
       # --------------------------------------------------------
       - name: Deploy MongoDB
-        shell: cmd
+        shell: bash
         run: |
+          kubectl apply -f hospital-k8s/namespace.yaml
+          
           kubectl apply -f hospital-k8s/mongodb/pvc.yaml
           kubectl apply -f hospital-k8s/mongodb/deployment.yaml
           kubectl apply -f hospital-k8s/mongodb/service.yaml
@@ -100,7 +102,7 @@ jobs:
       # DEPLOY HOSPITAL API
       # --------------------------------------------------------
       - name: Deploy Hospital API
-        shell: cmd
+        shell: bash
         run: |
           kubectl apply -f hospital-k8s/hospital-api/configmap.yaml
           kubectl apply -f hospital-k8s/hospital-api/deployment.yaml
@@ -111,7 +113,7 @@ jobs:
       # UPDATE HOSPITAL API IMAGE
       # --------------------------------------------------------
       - name: Update Hospital API image
-        shell: cmd
+        shell: bash
         run: |
           kubectl set image deployment/hospital-api hospital-api=%IMAGE_NAME%:%IMAGE_TAG% -n hospital
 
@@ -120,7 +122,7 @@ jobs:
       # WAIT FOR ROLLOUT
       # --------------------------------------------------------
       - name: Wait for deployment rollout
-        shell: cmd
+        shell: bash
         run: |
           kubectl rollout status deployment/hospital-api -n hospital --timeout=180s
 
@@ -129,7 +131,7 @@ jobs:
       # VERIFY DEPLOYMENT
       # --------------------------------------------------------
       - name: Verify deployment
-        shell: cmd
+        shell: bash
         run: |
           echo ==========================================
           echo KUBERNETES DEPLOYMENT SUCCESSFUL

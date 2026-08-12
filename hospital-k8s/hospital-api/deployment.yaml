@@ -1,8 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
+
 metadata:
   name: hospital-api
   namespace: hospital
+
 spec:
   replicas: 1
 
@@ -21,12 +23,18 @@ spec:
     spec:
       containers:
         - name: hospital-api
+
           image: sibasish6976/testing-minikube-repo:latest
+
           imagePullPolicy: Always
 
           ports:
             - containerPort: 5000
+              protocol: TCP
 
           envFrom:
             - configMapRef:
                 name: hospital-api-config
+
+            - secretRef:
+                name: hospital-api-secret

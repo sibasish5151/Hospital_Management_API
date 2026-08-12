@@ -78,7 +78,7 @@ jobs:
 
     # This job runs on your Windows machine where:
     # Docker Desktop + Minikube + kubectl are installed
-    runs-on: [self-hosted, minikube]
+    runs-on: self-hosted
 
     env:
       IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}

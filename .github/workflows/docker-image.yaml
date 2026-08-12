@@ -26,7 +26,6 @@ jobs:
 
       - name: Generate image tag
         id: image
-        shell: bash
         run: |
           IMAGE_TAG="${GITHUB_SHA}"
           echo "tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
@@ -39,12 +38,10 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build Docker image
-        shell: bash
         run: |
           docker build -t "$IMAGE_NAME:${{ steps.image.outputs.tag }}" .
 
       - name: Push Docker image
-        shell: bash
         run: |
           docker push "$IMAGE_NAME:${{ steps.image.outputs.tag }}"
 

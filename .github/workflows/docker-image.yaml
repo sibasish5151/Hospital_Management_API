@@ -40,9 +40,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build \
-            -t $IMAGE_NAME:${{ steps.image.outputs.tag }} \
-            .
+          docker build -t $IMAGE_NAME:${{ steps.image.outputs.tag }} .
 
       - name: Push Docker image
         run: |
@@ -74,7 +72,7 @@ jobs:
       # VERIFY MINIKUBE
       # ----------------------------------------------------------
       - name: Verify Minikube
-        shell: powershell -ExecutionPolicy Bypass
+        shell: bash
         run: |
           minikube status
 
@@ -83,17 +81,17 @@ jobs:
       # VERIFY KUBERNETES
       # ----------------------------------------------------------
       - name: Verify Kubernetes
-        shell: powershell -ExecutionPolicy Bypass
+        shell: bash
         run: |
           kubectl config use-context minikube
           kubectl get nodes
 
 
       # ----------------------------------------------------------
-      # APPLY MONGODB MANIFESTS
+      # DEPLOY MONGODB
       # ----------------------------------------------------------
       - name: Deploy MongoDB
-        shell: powershell -ExecutionPolicy Bypass
+        shell: bash
         run: |
           kubectl apply -f k8s/mongodb/pvc.yaml
           kubectl apply -f k8s/mongodb/deployment.yaml
@@ -101,10 +99,10 @@ jobs:
 
 
       # ----------------------------------------------------------
-      # APPLY HOSPITAL API MANIFESTS
+      # DEPLOY HOSPITAL API
       # ----------------------------------------------------------
       - name: Deploy Hospital API
-        shell: powershell -ExecutionPolicy Bypass
+        shell: bash
         run: |
           kubectl apply -f k8s/hospital-api/configmap.yaml
           kubectl apply -f k8s/hospital-api/deployment.yaml
@@ -115,57 +113,62 @@ jobs:
       # UPDATE API IMAGE
       # ----------------------------------------------------------
       - name: Update Hospital API image
-        shell: powershell -ExecutionPolicy Bypass
+        shell: bash
         run: |
-          kubectl set image deployment/hospital-api hospital-api=$env:IMAGE_NAME`:$env:IMAGE_TAG -n hospital
+          kubectl set image deployment/hospital-api \
+            hospital-api=${IMAGE_NAME}:${IMAGE_TAG} \
+            -n hospital
 
 
       # ----------------------------------------------------------
       # WAIT FOR ROLLOUT
       # ----------------------------------------------------------
       - name: Wait for deployment rollout
-        shell: powershell -ExecutionPolicy Bypass
+        shell: bash
         run: |
-          kubectl rollout status deployment/hospital-api -n hospital --timeout=180s
+          kubectl rollout status deployment/hospital-api \
+            -n hospital \
+            --timeout=180s
 
 
       # ----------------------------------------------------------
       # VERIFY FINAL DEPLOYMENT
       # ----------------------------------------------------------
       - name: Verify deployment
-        shell: powershell -ExecutionPolicy Bypass
+        shell: bash
         run: |
-          Write-Host ""
-          Write-Host "=========================================="
-          Write-Host " KUBERNETES DEPLOYMENT SUCCESSFUL"
-          Write-Host "=========================================="
+          echo "=========================================="
+          echo " KUBERNETES DEPLOYMENT SUCCESSFUL"
+          echo "=========================================="
 
-          Write-Host ""
-          Write-Host "Minikube:"
+          echo ""
+          echo "Minikube:"
           minikube status
 
-          Write-Host ""
-          Write-Host "Nodes:"
+          echo ""
+          echo "Nodes:"
           kubectl get nodes
 
-          Write-Host ""
-          Write-Host "Pods:"
+          echo ""
+          echo "Pods:"
           kubectl get pods -n hospital
 
-          Write-Host ""
-          Write-Host "Deployments:"
+          echo ""
+          echo "Deployments:"
           kubectl get deployments -n hospital
 
-          Write-Host ""
-          Write-Host "Services:"
+          echo ""
+          echo "Services:"
           kubectl get svc -n hospital
 
-          Write-Host ""
-          Write-Host "Running Hospital API image:"
-          kubectl get deployment hospital-api -n hospital -o jsonpath="{.spec.template.spec.containers[0].image}"
+          echo ""
+          echo "Running Hospital API image:"
+          kubectl get deployment hospital-api \
+            -n hospital \
+            -o jsonpath="{.spec.template.spec.containers[0].image}"
 
-          Write-Host ""
-          Write-Host ""
-          Write-Host "=========================================="
-          Write-Host " DEPLOYMENT VERIFICATION COMPLETE"
-          Write-Host "=========================================="
+          echo ""
+          echo ""
+          echo "=========================================="
+          echo " DEPLOYMENT VERIFICATION COMPLETE"
+          echo "=========================================="

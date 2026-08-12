@@ -54,104 +54,83 @@ jobs:
   # ============================================================
   deploy:
 
-    needs: build-and-push
+  needs: build-and-push
 
-    runs-on: [self-hosted, minikube]
+  runs-on: [self-hosted, minikube]
 
-    env:
-      IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+  env:
+    IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
 
-    steps:
+  steps:
 
-      # ----------------------------------------------------------
-      # Checkout repository
-      # ----------------------------------------------------------
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
 
-      # ----------------------------------------------------------
-      # Verify Minikube
-      # ----------------------------------------------------------
-      - name: Verify Minikube
-        shell: powershell
-        run: |
-          minikube status
+    - name: Verify Minikube
+      shell: pwsh
+      run: |
+        minikube status
 
 
-      # ----------------------------------------------------------
-      # Verify Kubernetes cluster
-      # ----------------------------------------------------------
-      - name: Verify Kubernetes
-        shell: powershell
-        run: |
-          kubectl config use-context minikube
-          kubectl get nodes
+    - name: Verify Kubernetes
+      shell: pwsh
+      run: |
+        kubectl config use-context minikube
+        kubectl get nodes
 
 
-      # ----------------------------------------------------------
-      # Apply Kubernetes manifests
-      # ----------------------------------------------------------
-      - name: Apply Kubernetes manifests
-        shell: powershell
-        run: |
-          kubectl apply -f k8s/mongodb/pvc.yaml
-          kubectl apply -f k8s/mongodb/deployment.yaml
-          kubectl apply -f k8s/mongodb/service.yaml
+    - name: Apply Kubernetes manifests
+      shell: pwsh
+      run: |
+        kubectl apply -f k8s/mongodb/pvc.yaml
+        kubectl apply -f k8s/mongodb/deployment.yaml
+        kubectl apply -f k8s/mongodb/service.yaml
 
-          kubectl apply -f k8s/hospital-api/configmap.yaml
-          kubectl apply -f k8s/hospital-api/deployment.yaml
-          kubectl apply -f k8s/hospital-api/service.yaml
+        kubectl apply -f k8s/hospital-api/configmap.yaml
+        kubectl apply -f k8s/hospital-api/deployment.yaml
+        kubectl apply -f k8s/hospital-api/service.yaml
 
 
-      # ----------------------------------------------------------
-      # Update Hospital API image
-      # ----------------------------------------------------------
-      - name: Deploy new Hospital API image
-        shell: powershell
-        run: |
-          kubectl set image deployment/hospital-api `
-            hospital-api=$env:IMAGE_NAME`:$env:IMAGE_TAG `
-            -n hospital
+    - name: Deploy new Hospital API image
+      shell: pwsh
+      run: |
+        kubectl set image deployment/hospital-api `
+          hospital-api=$env:IMAGE_NAME`:$env:IMAGE_TAG `
+          -n hospital
 
 
-      # ----------------------------------------------------------
-      # Wait for rollout
-      # ----------------------------------------------------------
-      - name: Wait for deployment rollout
-        shell: powershell
-        run: |
-          kubectl rollout status deployment/hospital-api `
-            -n hospital `
-            --timeout=180s
+    - name: Wait for deployment rollout
+      shell: pwsh
+      run: |
+        kubectl rollout status deployment/hospital-api `
+          -n hospital `
+          --timeout=180s
 
 
-      # ----------------------------------------------------------
-      # Verify deployment
-      # ----------------------------------------------------------
-      - name: Verify deployment
-        shell: powershell
-        run: |
-          Write-Host "======================================"
-          Write-Host "KUBERNETES DEPLOYMENT SUCCESSFUL"
-          Write-Host "======================================"
+    - name: Verify deployment
+      shell: pwsh
+      run: |
+        Write-Host "======================================"
+        Write-Host "KUBERNETES DEPLOYMENT SUCCESSFUL"
+        Write-Host "======================================"
 
-          Write-Host ""
-          Write-Host "Pods:"
-          kubectl get pods -n hospital
+        Write-Host ""
+        Write-Host "Pods:"
+        kubectl get pods -n hospital
 
-          Write-Host ""
-          Write-Host "Deployment:"
-          kubectl get deployment hospital-api -n hospital
+        Write-Host ""
+        Write-Host "Deployment:"
+        kubectl get deployment hospital-api -n hospital
 
-          Write-Host ""
-          Write-Host "Services:"
-          kubectl get svc -n hospital
+        Write-Host ""
+        Write-Host "Services:"
+        kubectl get svc -n hospital
 
-          Write-Host ""
-          Write-Host "Running image:"
-          kubectl get deployment hospital-api `
-            -n hospital `
-            -o jsonpath="{.spec.template.spec.containers[0].image}"
+        Write-Host ""
+        Write-Host "Running image:"
+        kubectl get deployment hospital-api `
+          -n hospital `
+          -o jsonpath="{.spec.template.spec.containers[0].image}"
 
-          Write-Host ""
+        Write-Host ""

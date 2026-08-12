@@ -11,7 +11,7 @@ env:
 jobs:
 
   # ============================================================
-  # CI: BUILD & PUSH DOCKER IMAGE
+  # CI - BUILD AND PUSH DOCKER IMAGE
   # ============================================================
   build-and-push:
 
@@ -40,7 +40,9 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t $IMAGE_NAME:${{ steps.image.outputs.tag }} .
+          docker build \
+            -t $IMAGE_NAME:${{ steps.image.outputs.tag }} \
+            .
 
       - name: Push Docker image
         run: |
@@ -48,7 +50,7 @@ jobs:
 
 
   # ============================================================
-  # CD: DEPLOY TO LOCAL MINIKUBE
+  # CD - DEPLOY TO LOCAL MINIKUBE
   # ============================================================
   deploy:
 
@@ -61,67 +63,109 @@ jobs:
 
     steps:
 
+      # ----------------------------------------------------------
+      # CHECKOUT
+      # ----------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
 
+      # ----------------------------------------------------------
+      # VERIFY MINIKUBE
+      # ----------------------------------------------------------
       - name: Verify Minikube
-        shell: pwsh
+        shell: powershell -ExecutionPolicy Bypass
         run: |
           minikube status
 
 
+      # ----------------------------------------------------------
+      # VERIFY KUBERNETES
+      # ----------------------------------------------------------
       - name: Verify Kubernetes
-        shell: pwsh
+        shell: powershell -ExecutionPolicy Bypass
         run: |
           kubectl config use-context minikube
           kubectl get nodes
 
 
-      - name: Apply Kubernetes manifests
-        shell: pwsh
+      # ----------------------------------------------------------
+      # APPLY MONGODB MANIFESTS
+      # ----------------------------------------------------------
+      - name: Deploy MongoDB
+        shell: powershell -ExecutionPolicy Bypass
         run: |
           kubectl apply -f k8s/mongodb/pvc.yaml
           kubectl apply -f k8s/mongodb/deployment.yaml
           kubectl apply -f k8s/mongodb/service.yaml
+
+
+      # ----------------------------------------------------------
+      # APPLY HOSPITAL API MANIFESTS
+      # ----------------------------------------------------------
+      - name: Deploy Hospital API
+        shell: powershell -ExecutionPolicy Bypass
+        run: |
           kubectl apply -f k8s/hospital-api/configmap.yaml
           kubectl apply -f k8s/hospital-api/deployment.yaml
           kubectl apply -f k8s/hospital-api/service.yaml
 
 
-      - name: Deploy new Hospital API image
-        shell: pwsh
+      # ----------------------------------------------------------
+      # UPDATE API IMAGE
+      # ----------------------------------------------------------
+      - name: Update Hospital API image
+        shell: powershell -ExecutionPolicy Bypass
         run: |
           kubectl set image deployment/hospital-api hospital-api=$env:IMAGE_NAME`:$env:IMAGE_TAG -n hospital
 
 
+      # ----------------------------------------------------------
+      # WAIT FOR ROLLOUT
+      # ----------------------------------------------------------
       - name: Wait for deployment rollout
-        shell: pwsh
+        shell: powershell -ExecutionPolicy Bypass
         run: |
           kubectl rollout status deployment/hospital-api -n hospital --timeout=180s
 
 
+      # ----------------------------------------------------------
+      # VERIFY FINAL DEPLOYMENT
+      # ----------------------------------------------------------
       - name: Verify deployment
-        shell: pwsh
+        shell: powershell -ExecutionPolicy Bypass
         run: |
-          Write-Host "======================================"
-          Write-Host "KUBERNETES DEPLOYMENT SUCCESSFUL"
-          Write-Host "======================================"
+          Write-Host ""
+          Write-Host "=========================================="
+          Write-Host " KUBERNETES DEPLOYMENT SUCCESSFUL"
+          Write-Host "=========================================="
+
+          Write-Host ""
+          Write-Host "Minikube:"
+          minikube status
+
+          Write-Host ""
+          Write-Host "Nodes:"
+          kubectl get nodes
 
           Write-Host ""
           Write-Host "Pods:"
           kubectl get pods -n hospital
 
           Write-Host ""
-          Write-Host "Deployment:"
-          kubectl get deployment hospital-api -n hospital
+          Write-Host "Deployments:"
+          kubectl get deployments -n hospital
 
           Write-Host ""
           Write-Host "Services:"
           kubectl get svc -n hospital
 
           Write-Host ""
-          Write-Host "Running image:"
+          Write-Host "Running Hospital API image:"
           kubectl get deployment hospital-api -n hospital -o jsonpath="{.spec.template.spec.containers[0].image}"
 
           Write-Host ""
+          Write-Host ""
+          Write-Host "=========================================="
+          Write-Host " DEPLOYMENT VERIFICATION COMPLETE"
+          Write-Host "=========================================="

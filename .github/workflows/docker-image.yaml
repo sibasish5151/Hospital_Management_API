@@ -72,7 +72,7 @@ jobs:
       # VERIFY MINIKUBE
       # ----------------------------------------------------------
       - name: Verify Minikube
-        shell: bash
+        shell: 'C:\Program Files\Git\bin\bash.exe' {0}
         run: |
           minikube status
 
@@ -81,7 +81,7 @@ jobs:
       # VERIFY KUBERNETES
       # ----------------------------------------------------------
       - name: Verify Kubernetes
-        shell: bash
+        shell: 'C:\Program Files\Git\bin\bash.exe' {0}
         run: |
           kubectl config use-context minikube
           kubectl get nodes
@@ -91,7 +91,7 @@ jobs:
       # DEPLOY MONGODB
       # ----------------------------------------------------------
       - name: Deploy MongoDB
-        shell: bash
+        shell: 'C:\Program Files\Git\bin\bash.exe' {0}
         run: |
           kubectl apply -f k8s/mongodb/pvc.yaml
           kubectl apply -f k8s/mongodb/deployment.yaml
@@ -102,7 +102,7 @@ jobs:
       # DEPLOY HOSPITAL API
       # ----------------------------------------------------------
       - name: Deploy Hospital API
-        shell: bash
+        shell: 'C:\Program Files\Git\bin\bash.exe' {0}
         run: |
           kubectl apply -f k8s/hospital-api/configmap.yaml
           kubectl apply -f k8s/hospital-api/deployment.yaml
@@ -113,7 +113,7 @@ jobs:
       # UPDATE API IMAGE
       # ----------------------------------------------------------
       - name: Update Hospital API image
-        shell: bash
+        shell: 'C:\Program Files\Git\bin\bash.exe' {0}
         run: |
           kubectl set image deployment/hospital-api \
             hospital-api=${IMAGE_NAME}:${IMAGE_TAG} \
@@ -124,7 +124,7 @@ jobs:
       # WAIT FOR ROLLOUT
       # ----------------------------------------------------------
       - name: Wait for deployment rollout
-        shell: bash
+        shell: 'C:\Program Files\Git\bin\bash.exe' {0}
         run: |
           kubectl rollout status deployment/hospital-api \
             -n hospital \
@@ -135,7 +135,7 @@ jobs:
       # VERIFY FINAL DEPLOYMENT
       # ----------------------------------------------------------
       - name: Verify deployment
-        shell: bash
+        shell: 'C:\Program Files\Git\bin\bash.exe' {0}
         run: |
           echo "=========================================="
           echo " KUBERNETES DEPLOYMENT SUCCESSFUL"

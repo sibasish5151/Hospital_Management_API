@@ -15,61 +15,36 @@ jobs:
   # ============================================================
   build-and-push:
     runs-on: ubuntu-latest
-
-    outputs:
-      image_tag: ${{ steps.image.outputs.tag }}
-
     steps:
 
-      # --------------------------------------------------------
-      # CHECKOUT
-      # --------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # --------------------------------------------------------
-      # GENERATE IMMUTABLE IMAGE TAG
-      # --------------------------------------------------------
-      - name: Generate image tag
-        id: image
-        shell: bash
-        run: |
-          IMAGE_TAG="${GITHUB_SHA}"
-
-          echo "tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
-
-          echo "=========================================="
-          echo "Docker Image"
-          echo "=========================================="
-          echo "${IMAGE_NAME}:${IMAGE_TAG}"
-
-      # --------------------------------------------------------
-      # LOGIN TO DOCKER HUB
-      # --------------------------------------------------------
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # --------------------------------------------------------
-      # BUILD DOCKER IMAGE
-      # --------------------------------------------------------
       - name: Build Docker image
         shell: bash
         run: |
+          echo "=========================================="
+          echo "BUILDING DOCKER IMAGE"
+          echo "=========================================="
+
           docker build \
-            -t "${IMAGE_NAME}:${{ steps.image.outputs.tag }}" \
+            -t "${IMAGE_NAME}:latest" \
             .
 
-      # --------------------------------------------------------
-      # PUSH DOCKER IMAGE
-      # --------------------------------------------------------
       - name: Push Docker image
         shell: bash
         run: |
-          docker push \
-            "${IMAGE_NAME}:${{ steps.image.outputs.tag }}"
+          echo "=========================================="
+          echo "PUSHING DOCKER IMAGE"
+          echo "=========================================="
+
+          docker push "${IMAGE_NAME}:latest"
 
 
   # ============================================================
@@ -78,22 +53,16 @@ jobs:
   deploy:
     needs: build-and-push
 
-    # IMPORTANT:
-    # This ensures the deployment runs specifically on
-    # your MacBook Air self-hosted runner.
     runs-on:
       - self-hosted
       - macOS
       - ARM64
       - mac-minikube
 
-    env:
-      IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
-
     steps:
 
       # --------------------------------------------------------
-      # CHECKOUT REPOSITORY
+      # CHECKOUT
       # --------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -123,18 +92,15 @@ jobs:
           echo "=========================================="
 
           kubectl config use-context minikube
-
           kubectl get nodes
 
 
       # --------------------------------------------------------
-      # DEPLOY NAMESPACE
+      # CREATE / UPDATE NAMESPACE
       # --------------------------------------------------------
-      - name: Deploy Hospital Namespace
+      - name: Deploy Namespace
         shell: bash
         run: |
-          echo "Creating/updating hospital namespace..."
-
           kubectl apply \
             -f hospital-k8s/namespace.yaml
 
@@ -160,54 +126,59 @@ jobs:
 
 
       # --------------------------------------------------------
-      # DEPLOY HOSPITAL API
+      # WAIT FOR MONGODB
       # --------------------------------------------------------
-      - name: Deploy Hospital API
+      - name: Wait for MongoDB
         shell: bash
         run: |
-          echo "=========================================="
-          echo "DEPLOYING HOSPITAL API"
-          echo "=========================================="
+          kubectl rollout status \
+            deployment/mongodb \
+            -n hospital \
+            --timeout=180s
 
+
+      # --------------------------------------------------------
+      # DEPLOY API CONFIGURATION
+      # --------------------------------------------------------
+      - name: Deploy Hospital API Configuration
+        shell: bash
+        run: |
           kubectl apply \
             -f hospital-k8s/hospital-api/configmap.yaml
-
-          kubectl apply \
-            -f hospital-k8s/hospital-api/deployment.yaml
 
           kubectl apply \
             -f hospital-k8s/hospital-api/service.yaml
 
 
       # --------------------------------------------------------
-      # UPDATE HOSPITAL API IMAGE
+      # REMOVE EXISTING API DEPLOYMENT
       # --------------------------------------------------------
-      - name: Update Hospital API image
+      - name: Remove existing Hospital API deployment
         shell: bash
         run: |
-          echo "=========================================="
-          echo "UPDATING HOSPITAL API IMAGE"
-          echo "=========================================="
+          kubectl delete deployment hospital-api \
+            -n hospital \
+            --ignore-not-found=true
 
-          echo "Image:"
-          echo "${IMAGE_NAME}:${IMAGE_TAG}"
-
-          kubectl set image \
-            deployment/hospital-api \
-            hospital-api="${IMAGE_NAME}:${IMAGE_TAG}" \
-            -n hospital
+          echo "Existing Hospital API deployment removed."
 
 
       # --------------------------------------------------------
-      # WAIT FOR ROLLOUT
+      # DEPLOY API
       # --------------------------------------------------------
-      - name: Wait for Hospital API rollout
+      - name: Deploy Hospital API
         shell: bash
         run: |
-          echo "=========================================="
-          echo "WAITING FOR ROLLOUT"
-          echo "=========================================="
+          kubectl apply \
+            -f hospital-k8s/hospital-api/deployment.yaml
 
+
+      # --------------------------------------------------------
+      # WAIT FOR API
+      # --------------------------------------------------------
+      - name: Wait for Hospital API
+        shell: bash
+        run: |
           kubectl rollout status \
             deployment/hospital-api \
             -n hospital \
@@ -230,12 +201,16 @@ jobs:
           minikube status
 
           echo ""
-          echo "Kubernetes Nodes:"
+          echo "Nodes:"
           kubectl get nodes
 
           echo ""
           echo "Hospital Namespace:"
           kubectl get all -n hospital
+
+          echo ""
+          echo "Pods:"
+          kubectl get pods -n hospital
 
           echo ""
           echo "Deployments:"
@@ -246,20 +221,12 @@ jobs:
           kubectl get services -n hospital
 
           echo ""
-          echo "Pods:"
-          kubectl get pods -n hospital
-
-          echo ""
-          echo "Running Hospital API Image:"
+          echo "Hospital API Image:"
           kubectl get deployment hospital-api \
             -n hospital \
             -o jsonpath="{.spec.template.spec.containers[0].image}"
 
           echo ""
-          echo ""
-          echo "Expected Image:"
-          echo "${IMAGE_NAME}:${IMAGE_TAG}"
-
           echo ""
           echo "=========================================="
           echo "DEPLOYMENT VERIFICATION COMPLETE"

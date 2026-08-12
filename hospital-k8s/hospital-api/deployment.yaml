@@ -3,32 +3,30 @@ kind: Deployment
 metadata:
   name: hospital-api
   namespace: hospital
-
 spec:
   replicas: 1
+
+  strategy:
+    type: Recreate
+
   selector:
     matchLabels:
       app: hospital-api
+
   template:
     metadata:
       labels:
         app: hospital-api
+
     spec:
       containers:
         - name: hospital-api
           image: sibasish6976/testing-minikube-repo:latest
           imagePullPolicy: Always
+
           ports:
             - containerPort: 5000
+
           envFrom:
             - configMapRef:
                 name: hospital-api-config
-            - secretRef:
-                name: hospital-api-secret
-          resources:
-            requests:
-              cpu: "100m"
-              memory: "128Mi"
-            limits:
-              cpu: "500m"
-              memory: "512Mi"

@@ -189,7 +189,7 @@ jobs:
       # VERIFY DEPLOYMENT
       # --------------------------------------------------------
       - name: Verify deployment
-        shell: bash
+        shell: powershell
         run: |
           echo ""
           echo "=========================================="

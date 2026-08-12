@@ -1,49 +1,196 @@
-name: Build and Push Hospital API
+name: Hospital CI/CD
 
 on:
   push:
     branches:
       - main
 
-  workflow_dispatch:
-
 env:
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/testing-minikube-repo
+  IMAGE_NAME: sibasish6976/testing-minikube-repo
 
 jobs:
+
+  # ============================================================
+  # JOB 1: BUILD & PUSH DOCKER IMAGE
+  # ============================================================
   build-and-push:
-    name: Build and Push Docker Image
+
     runs-on: ubuntu-latest
+
+    outputs:
+      image_tag: ${{ steps.image.outputs.tag }}
 
     steps:
 
-      # 1. Checkout source code
+      # ----------------------------------------------------------
+      # Checkout source code
+      # ----------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Setup Node.js
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
 
-      # 3. Install dependencies
-      - name: Install dependencies
-        run: npm install
+      # ----------------------------------------------------------
+      # Generate immutable Docker image tag
+      # Git commit SHA identifies exactly what was deployed
+      # ----------------------------------------------------------
+      - name: Generate image tag
+        id: image
+        run: |
+          IMAGE_TAG="${GITHUB_SHA}"
+          echo "tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "Docker image: $IMAGE_NAME:${IMAGE_TAG}"
 
-      # 4. Docker Hub authentication
+
+      # ----------------------------------------------------------
+      # Login to Docker Hub
+      # ----------------------------------------------------------
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 5. Build and push Docker image
-      - name: Build and Push Docker Image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:latest
-            ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+
+      # ----------------------------------------------------------
+      # Build Docker image
+      # ----------------------------------------------------------
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t $IMAGE_NAME:${{ steps.image.outputs.tag }} \
+            .
+
+
+      # ----------------------------------------------------------
+      # Push immutable image to Docker Hub
+      # ----------------------------------------------------------
+      - name: Push Docker image
+        run: |
+          docker push $IMAGE_NAME:${{ steps.image.outputs.tag }}
+
+
+  # ============================================================
+  # JOB 2: DEPLOY TO LOCAL MINIKUBE
+  # ============================================================
+  deploy:
+
+    needs: build-and-push
+
+    # This job runs on your Windows machine where:
+    # Docker Desktop + Minikube + kubectl are installed
+    runs-on: [self-hosted, minikube]
+
+    env:
+      IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+
+    steps:
+
+      # ----------------------------------------------------------
+      # Checkout repository
+      # Required so the runner has access to Kubernetes manifests
+      # ----------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+
+      # ----------------------------------------------------------
+      # Verify Minikube
+      # ----------------------------------------------------------
+      - name: Verify Minikube
+        shell: powershell
+        run: |
+          minikube status
+
+      # ----------------------------------------------------------
+      # Verify Kubernetes context
+      # ----------------------------------------------------------
+      - name: Verify Kubernetes cluster
+        shell: powershell
+        run: |
+          kubectl config use-context minikube
+          kubectl get nodes
+
+
+      # ----------------------------------------------------------
+      # Verify hospital namespace
+      # ----------------------------------------------------------
+      - name: Verify hospital namespace
+        shell: powershell
+        run: |
+          kubectl get namespace hospital
+
+
+      # ----------------------------------------------------------
+      # Deploy Kubernetes manifests
+      #
+      # These are applied only if you want the workflow to
+      # maintain/update the Kubernetes resources.
+      # ----------------------------------------------------------
+      - name: Apply Kubernetes manifests
+        shell: powershell
+        run: |
+          kubectl apply -f k8s/mongodb/pvc.yaml
+          kubectl apply -f k8s/mongodb/deployment.yaml
+          kubectl apply -f k8s/mongodb/service.yaml
+
+          kubectl apply -f k8s/hospital-api/configmap.yaml
+          kubectl apply -f k8s/hospital-api/deployment.yaml
+          kubectl apply -f k8s/hospital-api/service.yaml
+
+      # ----------------------------------------------------------
+      # Update Hospital API image
+      #
+      # Uses the immutable Git commit SHA image pushed by Job 1
+      # ----------------------------------------------------------
+      - name: Deploy new Hospital API image
+        shell: powershell
+        run: |
+          kubectl set image deployment/hospital-api `
+            hospital-api=$env:IMAGE_NAME`:$env:IMAGE_TAG `
+            -n hospital
+
+
+      # ----------------------------------------------------------
+      # Wait until Kubernetes successfully rolls out the new Pod
+      # ----------------------------------------------------------
+      - name: Wait for deployment rollout
+        shell: powershell
+        run: |
+          kubectl rollout status deployment/hospital-api `
+            -n hospital `
+            --timeout=180s
+
+
+      # ----------------------------------------------------------
+      # Verify final Kubernetes state
+      # ----------------------------------------------------------
+      - name: Verify deployment
+        shell: powershell
+        run: |
+          Write-Host "======================================"
+          Write-Host "KUBERNETES DEPLOYMENT SUCCESSFUL"
+          Write-Host "======================================"
+
+          Write-Host ""
+          Write-Host "Pods:"
+          kubectl get pods -n hospital
+
+          Write-Host ""
+          Write-Host "Deployment:"
+          kubectl get deployment hospital-api -n hospital
+
+          Write-Host ""
+          Write-Host "Services:"
+          kubectl get svc -n hospital
+
+          Write-Host ""
+          Write-Host "Ingress:"
+          kubectl get ingress -n hospital
+
+          Write-Host ""
+          Write-Host "Running image:"
+          kubectl get deployment hospital-api `
+            -n hospital `
+            -o jsonpath="{.spec.template.spec.containers[0].image}"
+
+          Write-Host ""

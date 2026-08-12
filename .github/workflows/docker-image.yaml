@@ -109,7 +109,7 @@ jobs:
       # DEPLOY MONGODB
       # --------------------------------------------------------
       - name: Deploy MongoDB
-        shell: bash
+        shell: powershell
         run: |
           echo "=========================================="
           echo "DEPLOYING MONGODB"

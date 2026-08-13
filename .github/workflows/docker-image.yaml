@@ -197,6 +197,8 @@ jobs:
           kubectl apply \
             -f hospital-k8s/hospital-api/load-generator.yaml
 
+          kubectl apply \
+            -f hospital-k8s/hospital-api/hpa.yaml
       # --------------------------------------------------------
       # VERIFY DEPLOYMENT
       # --------------------------------------------------------

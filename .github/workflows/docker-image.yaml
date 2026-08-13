@@ -27,7 +27,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build Docker image
-        shell: powershell
+        shell: bash
         run: |
           echo "=========================================="
           echo "BUILDING DOCKER IMAGE"
@@ -38,7 +38,7 @@ jobs:
             .
 
       - name: Push Docker image
-        shell: powershell
+        shell: bash
         run: |
           echo "=========================================="
           echo "PUSHING DOCKER IMAGE"
@@ -72,7 +72,7 @@ jobs:
       # VERIFY MINIKUBE
       # --------------------------------------------------------
       - name: Verify Minikube
-        shell: powershell
+        shell: bash
         run: |
           echo "=========================================="
           echo "MINIKUBE STATUS"
@@ -85,7 +85,7 @@ jobs:
       # VERIFY KUBERNETES
       # --------------------------------------------------------
       - name: Verify Kubernetes
-        shell: powershell
+        shell: bash
         run: |
           echo "=========================================="
           echo "KUBERNETES STATUS"
@@ -99,7 +99,7 @@ jobs:
       # CREATE / UPDATE NAMESPACE
       # --------------------------------------------------------
       - name: Deploy Namespace
-        shell: powershell
+        shell: bash
         run: |
           kubectl apply \
             -f hospital-k8s/namespace.yaml
@@ -109,7 +109,7 @@ jobs:
       # DEPLOY MONGODB
       # --------------------------------------------------------
       - name: Deploy MongoDB
-        shell: powershell
+        shell: bash
         run: |
           echo "=========================================="
           echo "DEPLOYING MONGODB"
@@ -129,7 +129,7 @@ jobs:
       # WAIT FOR MONGODB
       # --------------------------------------------------------
       - name: Wait for MongoDB
-        shell: powershell
+        shell: bash
         run: |
           kubectl rollout status \
             deployment/mongodb \
@@ -141,7 +141,7 @@ jobs:
       # DEPLOY API CONFIGURATION
       # --------------------------------------------------------
       - name: Deploy Hospital API Configuration
-        shell: powershell
+        shell: bash
         run: |
           kubectl apply \
             -f hospital-k8s/hospital-api/configmap.yaml
@@ -154,7 +154,7 @@ jobs:
       # REMOVE EXISTING API DEPLOYMENT
       # --------------------------------------------------------
       - name: Remove existing Hospital API deployment
-        shell: powershell
+        shell: bash
         run: |
           kubectl delete deployment hospital-api \
             -n hospital \
@@ -167,7 +167,7 @@ jobs:
       # DEPLOY API
       # --------------------------------------------------------
       - name: Deploy Hospital API
-        shell: powershell
+        shell: bash
         run: |
           kubectl apply \
             -f hospital-k8s/hospital-api/deployment.yaml
@@ -177,7 +177,7 @@ jobs:
       # WAIT FOR API
       # --------------------------------------------------------
       - name: Wait for Hospital API
-        shell: powershell
+        shell: bash
         run: |
           kubectl rollout status \
             deployment/hospital-api \
@@ -188,7 +188,7 @@ jobs:
       # RUN LOAD GENERATOR
       # --------------------------------------------------------
       - name: Run Load Generator
-        shell: powershell
+        shell: bash
         run: |
           echo "=========================================="
           echo "STARTING LOAD GENERATOR"
@@ -201,7 +201,7 @@ jobs:
       # VERIFY DEPLOYMENT
       # --------------------------------------------------------
       - name: Verify deployment
-        shell: powershell
+        shell: bash
         run: |
           echo ""
           echo "=========================================="
